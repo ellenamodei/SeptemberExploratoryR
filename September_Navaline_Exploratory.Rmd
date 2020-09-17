@@ -1,0 +1,263 @@
+---
+title: "R Notebook"
+output:
+  html_notebook: default
+  pdf_document: default
+---
+
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(readr)
+library(dplyr)
+September_Navaline <- read_csv("~/Downloads/September_Navaline.csv")
+View(September_Navaline)
+df <- data.frame(September_Navaline)
+```
+
+
+```{r}
+#Create new Unique_ID by combining Customer_ID and Location_ID
+sep1<-mutate(September_Navaline, Unique_ID = paste(CustomerID, LocationID, sep = "-"))
+
+```
+
+```{r}
+str(September_Navaline)
+```
+
+```{r}
+#Remove unused rows
+sep2<-select (df,-c(CustomerID,LocationID,Juristiction,CustomerType))
+```
+
+```{r}
+#Create Total.Delinquent Column by adding all accounts Over 30 days due
+sep3 <- mutate(sep2, Total.Delinquent = Over30+Over60+Over90+Over120+Over150)
+
+```
+
+
+```{r}
+#Remove 0 from Total.Delinquent (accounts with no delinquencies) , rename sep4
+
+sep4 <- sep3 %>% filter(`Total.Delinquent` != 0)
+```
+
+```{r}
+summary(sep4)
+```
+
+```{r}
+sum(sep4$Total.Delinquent)
+```
+
+```{r}
+#Accounts only 30 days overdue
+LowRisk <- sep4 %>% filter(`Over60` == 0) %>% filter(Over90 ==0) %>% filter(Over120==0) %>% filter(Over150==0)
+```
+
+```{r}
+#Accounts 60 Day overdue but not 90
+Mediumrisk <- sep4  %>% filter(Over60>0) %>% filter (Over90 ==0) %>% filter(Over120==0) %>% filter(Over150==0)
+```
+
+```{r}
+#Accounts over 90
+HR3 <-sep4 %>% filter(Over150 > 0) %>%  filter(Over90==0) %>% filter(Over120==0) 
+```
+
+```{r}
+HR2<- sep4 %>% filter(Over90>0) %>%  filter(Over120==0) %>% filter(Over150==0) 
+```
+
+```{r}
+HR1<- sep4 %>% filter(Over120>0)%>%  filter(Over90==0) %>% filter(Over150==0) 
+```
+
+```{r}
+HR4 <- sep4 %>% filter(Over120>0)%>%  filter(Over90>0) %>% filter(Over150>0) 
+```
+
+```{r}
+HR5 <-sep4 %>% filter(Over120>0)%>%  filter(Over90>0) %>% filter(Over150==0) 
+```
+
+```{r}
+HR6<-sep4 %>% filter(Over90>0)%>%  filter(Over120==0) %>% filter(Over150>0) 
+```
+
+```{r}
+HR7 <- sep4 %>% filter(Over150>0)%>%  filter(Over90==0) %>% filter(Over120>0) 
+```
+
+```{r}
+#combine all combinations of high risk
+HighRisk <- bind_rows(HR1,HR2,HR3,HR4,HR5,HR6,HR7)
+```
+
+
+```{r}
+#Combine all risk categories
+Risk<-bind_rows(LowRisk,Mediumrisk,HighRisk)
+```
+
+```{r}
+summary(HighRisk)
+sum(HighRisk$Total.Delinquent)
+```
+
+```{r}
+summary(Mediumrisk)
+sum(Mediumrisk$Total.Delinquent)
+```
+
+```{r}
+summary(LowRisk)
+sum(LowRisk$Total.Delinquent)
+```
+```{r}
+#Create new column labeling risk categories by L, M , H
+LowRisk1 <- mutate(LowRisk, Class = "L")
+Mediumrisk1 <- mutate(Mediumrisk, Class = "M")
+HighRisk1 <- mutate(HighRisk, Class = "H")
+```
+
+```{r}
+#Combine all risk  with new variavle
+Risk1<-bind_rows(LowRisk1,Mediumrisk1,HighRisk1)
+```
+
+
+``
+```{r}
+#Summary of High Risk from September
+summary(HighRisk1)
+sum(HighRisk1$Total.Delinquent)
+
+#2309 Accounts #average owed 307.6
+#Total Owed 710207
+```
+
+```{r}
+#Medium Risk Summary
+summary(Mediumrisk1)
+sum(Mediumrisk1$Total.Delinquent)
+#Total Accounts 1008, Total Owed 174,746
+```
+
+```{r}
+#Summary of Low Risk Category
+summary(LowRisk1)
+sum(LowRisk1$Total.Delinquent)
+
+```
+
+```{r}
+summary(Risk$Total.Delinquent)  
+sum(Risk$Total.Delinquent)
+```
+
+```{r}
+#sample 20% of each category
+set.seed(33)
+s1<-sample_n(LowRisk1, 4027)
+set.seed(33)
+s2<-sample_n(Mediumrisk1, 806)
+set.seed(33)
+s3<-sample_n(HighRisk1, 1847)
+
+```
+
+```{r}
+#Combine Samples
+sample<-rbind(s1,s2,s3)
+```
+```{r}
+summary(sample)
+sum(sample$Total.Delinquent)
+```
+
+```{r}
+summary(s3)
+sum(s3$Total.Delinquent)
+```
+
+```{r}
+#create category with only Housing Authority Accounts
+Housing <- Risk1 %>% filter(`CustomerName` == 'HOUSING AUTHORITY')
+sum(Housing$Total.Delinquent)
+```
+```{r}
+#Create Category with only delinquent housing authority accounts
+housing.delinquent <- Housing %>% filter(`Total.Delinquent` != 0)
+sum(housing.delinquent$Total.Delinquent)
+```
+```{r}
+#Filter Low Rish Housing Authority Accounts
+Housing %>% count(Class=='L')
+```
+```{r}
+summary(housing.delinquent)
+```
+
+```{r}
+summary(Risk1)
+```
+
+
+```{r}
+summary(Housing)
+```
+```{r}
+#Create summary of only Commericial Accounts
+Total.commercial <- sep3 %>% filter(`RateClass` == 'CO')
+```
+
+```{r}
+#Filter for only commercial accounts that are delinquent
+Commercial <- Risk1 %>% filter(`RateClass` == 'CO')
+sum(Commercial$Total.Delinquent)
+```
+```{r}
+count(Commercial, Class=='L', Class=='H', Class=='M')
+```
+
+```{r}  
+#summary of Risk Category Summary
+summary(Commercial %>% filter(Class=='H'))
+```
+
+```{r}
+summary(Commercial %>% filter(Class=='M'))
+```
+
+```{r}
+#Summary for High Risk Delinquent Accounts
+summary(Commercial %>% filter(Class=='H'))
+
+```
+```{r}
+summary(Commercial)
+```
+
+```{r}
+summary(housing.delinquent %>% filter(Class=='H'))
+```
+```{r}
+#Random Sample Low Rish, Cross Validate
+set.seed(33)
+sample_n(LowRisk1, 1)
+```
+
+```{r}
+set.seed(33)
+sample_n(Mediumrisk1, 1)
+```
+
+```{r}
+set.seed(33)
+sample_n(HighRisk1, 1)
+```
+
